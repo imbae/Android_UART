@@ -55,7 +55,6 @@ import com.example.uarttest.viewmodel.SerialViewModel
 lateinit var viewModel: SerialViewModel
 
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -64,7 +63,6 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             createMainScaffold()
-
         }
     }
 
@@ -79,7 +77,6 @@ class MainActivity : ComponentActivity() {
 fun createSerialConnectContent() {
     val devices: List<UsbDevice> by viewModel.usbDevices.observeAsState(emptyList())
     val baudrates: List<Int> by viewModel.baudrates.observeAsState(emptyList())
-    val dataReceived: String by viewModel.dataReceived.observeAsState("대기 중")
 
     var expanded by remember { mutableStateOf(false) }
     var baudrateExpanded by remember { mutableStateOf(false) }
@@ -232,9 +229,6 @@ fun showConnectDialog(openDialog: MutableState<Boolean>) {
 
     AlertDialog(
         onDismissRequest = {
-            // Dismiss the dialog when the user clicks outside the dialog or on the back
-            // button. If you want to disable that functionality, simply use an empty
-            // onDismissRequest.
             openDialog.value = false
         },
         icon = { Icon(Icons.Filled.Search, contentDescription = null) },
