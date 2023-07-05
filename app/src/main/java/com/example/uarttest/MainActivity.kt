@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DropdownMenu
@@ -46,6 +46,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
+import com.example.uarttest.navigation.UartNavigation
 import com.example.uarttest.viewmodel.SerialViewModel
 
 lateinit var viewModel: SerialViewModel
@@ -60,6 +64,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             createMainScaffold()
+
         }
     }
 
@@ -171,16 +176,17 @@ fun createSerialConnectContent() {
                 }
             }
         }
-        Text(text = "$dataReceived")
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun createMainScaffold() {
+    val navController = rememberNavController()
     val openDialog = remember { mutableStateOf(false) }
+
     Scaffold(
-        bottomBar = { createNavigationBar() },
+        bottomBar = { createNavigationBar(navController) },
         floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -191,7 +197,7 @@ fun createMainScaffold() {
                 Text("Connect")
             }
         }) { innerPadding ->
-        BodyContent(Modifier.padding(innerPadding))
+        BodyContent(Modifier.padding(innerPadding), navController)
 
         if (openDialog.value) {
             showConnectDialog(openDialog)
@@ -200,10 +206,10 @@ fun createMainScaffold() {
 }
 
 @Composable
-fun createNavigationBar() {
+fun createNavigationBar(navController: NavController) {
     var selectedItem by remember { mutableStateOf(0) }
-    val items = listOf("PILS", "Setting")
-    val iconItems = listOf(Icons.Filled.PlayArrow, Icons.Filled.Settings)
+    val items = listOf("Home", "Setting")
+    val iconItems = listOf(Icons.Filled.Home, Icons.Filled.Settings)
 
     NavigationBar {
         items.forEachIndexed { index, item ->
@@ -211,7 +217,10 @@ fun createNavigationBar() {
                 icon = { Icon(iconItems[index], contentDescription = item) },
                 label = { Text(item) },
                 selected = selectedItem == index,
-                onClick = { selectedItem = index }
+                onClick = {
+                    selectedItem = index
+                    navController.navigate(item+"Screen")
+                }
             )
         }
     }
@@ -258,8 +267,8 @@ fun showConnectDialog(openDialog: MutableState<Boolean>) {
 }
 
 @Composable
-fun BodyContent(modifier: Modifier = Modifier) {
-
+fun BodyContent(modifier: Modifier = Modifier, navHostController: NavHostController) {
+    UartNavigation(navHostController)
 }
 
 @Preview(showBackground = true)
