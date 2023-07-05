@@ -1,56 +1,30 @@
 package com.example.uarttest
 
-import android.annotation.SuppressLint
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
-import android.content.ContentValues.TAG
-import android.content.Context
-import android.content.Context.USB_SERVICE
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.ui.Modifier
 
 import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbManager
-import android.util.Log
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.BottomAppBarDefaults
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FabPosition
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
@@ -58,12 +32,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -71,138 +41,143 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import androidx.core.content.ContextCompat.getSystemService
-import androidx.lifecycle.ViewModelProvider
 import com.example.uarttest.viewmodel.SerialViewModel
+
+lateinit var viewModel: SerialViewModel
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
-        val viewModel = SerialViewModel.getInstance(this)
-
         super.onCreate(savedInstanceState)
-        //viewModel = ViewModelProvider(this)[SerialViewModel::class.java]
-        viewModel.selectedDevice = viewModel.usbManager.deviceList.values.firstOrNull()
 
-        val filter = IntentFilter(viewModel.ACTION_USB_PERMISSION)
-        registerReceiver(viewModel.usbReceiver, filter)
+        viewModel = SerialViewModel.getInstance(this)
+        viewModel.initializeViewModel()
 
         setContent {
-            createMainScaffold(this)
+            createMainScaffold()
         }
     }
-
-
 
     override fun onResume() {
         super.onResume()
-        val viewModel = SerialViewModel.getInstance(this)
-        viewModel.refreshDevices(viewModel.usbManager)
+        viewModel.refreshDevices()
     }
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun createSerialConnectContent(context: Context) {
-    val viewModel = remember { SerialViewModel.getInstance(context) }
-
+fun createSerialConnectContent() {
     val devices: List<UsbDevice> by viewModel.usbDevices.observeAsState(emptyList())
-    var expanded by remember { mutableStateOf(false) }
+    val baudrates: List<Int> by viewModel.baudrates.observeAsState(emptyList())
     val dataReceived: String by viewModel.dataReceived.observeAsState("대기 중")
-    val sendData = remember { mutableStateOf("") }
 
-    var textFiledSize by remember {
-        mutableStateOf(Size.Zero)
-    }
-    var icon = if (expanded) {
-        Icons.Default.KeyboardArrowUp
-    } else {
-        Icons.Default.KeyboardArrowDown
-    }
+    var expanded by remember { mutableStateOf(false) }
+    var baudrateExpanded by remember { mutableStateOf(false) }
+    var textFiledSize by remember { mutableStateOf(Size.Zero) }
+    var icon =
+        if (expanded) { Icons.Default.KeyboardArrowUp }
+        else { Icons.Default.KeyboardArrowDown }
 
-    var deviceName = viewModel.selectedDevice?.deviceName ?: "Empty Device"
+    var productName = viewModel.selectedDevice?.productName ?: "Empty Device"
+    var baudrateName = viewModel.selectedBaudrate?: "Empty Baudrate"
 
     Column(modifier = Modifier.padding(10.dp)) {
-        OutlinedTextField(
-            value = deviceName,
-            readOnly = true,
-            onValueChange = { deviceName = it },
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .onGloballyPositioned {
-                    textFiledSize = it.size.toSize()
-                },
-            label = {
-                Text("Select Item")
-            },
-            trailingIcon = {
-                Icon(icon, "", Modifier.clickable { expanded = !expanded })
-            })
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier
-                .width(with(LocalDensity.current) {
-                    textFiledSize.width.toDp()
-                })
+                .wrapContentSize(Alignment.TopStart)
         ) {
-
-            devices.forEach { device ->
-                DropdownMenuItem(
-                    text = {
-                        Text(text = device.deviceName)
+            OutlinedTextField(
+                value = productName,
+                readOnly = true,
+                onValueChange = { productName = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned {
+                        textFiledSize = it.size.toSize()
                     },
-                    onClick = {
-                        expanded = false
-                        viewModel.selectedDevice = device
+                label = {
+                    Text("Select Device")
+                },
+                trailingIcon = {
+                    Icon(icon, "", Modifier.clickable { expanded = !expanded })
+                })
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .width(with(LocalDensity.current) {
+                        textFiledSize.width.toDp()
                     })
-            }
-        }
+            ) {
 
-        Button(onClick = {
-            viewModel.selectedDevice?.let {
-                requestUsbPermission(context, it)
-                //viewModel.selectDevice(usbManager, it)
+                devices.forEach { device ->
+                    DropdownMenuItem(
+                        text = {
+                            device.productName?.let { Text(text = it) }
+                        },
+                        onClick = {
+                            expanded = false
+                            viewModel.selectedDevice = device
+                        })
+                }
             }
-        }) {
-            Text("Connect")
         }
-        Text("Received data: $dataReceived")
-        TextField(
-            value = sendData.value,
-            onValueChange = { sendData.value = it },
-            label = { Text("Data to send") }
-        )
-        Button(onClick = {
-            viewModel.sendData(sendData.value)
-        }) {
-            Text("Send data")
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentSize(Alignment.TopStart)
+        ) {
+            OutlinedTextField(
+                value = baudrateName.toString(),
+                readOnly = true,
+                onValueChange = { baudrateName = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned {
+                        textFiledSize = it.size.toSize()
+                    },
+                label = {
+                    Text("Select Baud-rate")
+                },
+                trailingIcon = {
+                    Icon(icon, "", Modifier.clickable { baudrateExpanded = !baudrateExpanded })
+                })
+
+            DropdownMenu(
+                expanded = baudrateExpanded,
+                onDismissRequest = { baudrateExpanded = false },
+                modifier = Modifier
+                    .width(with(LocalDensity.current) {
+                        textFiledSize.width.toDp()
+                    })
+            ) {
+
+                baudrates.forEach { baudrate ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(text = baudrate.toString())
+                        },
+                        onClick = {
+                            baudrateExpanded = false
+                            viewModel.selectedBaudrate = baudrate
+                        })
+                }
+            }
         }
+        Text(text = "$dataReceived")
     }
-}
-
-fun requestUsbPermission(context: Context, usbDevice: UsbDevice) {
-    val viewModel = SerialViewModel.getInstance(context)
-    val permissionIntent = PendingIntent.getBroadcast(
-        context,
-        0,
-        Intent(viewModel.ACTION_USB_PERMISSION),
-        PendingIntent.FLAG_MUTABLE
-    )
-    viewModel.usbManager.requestPermission(usbDevice, permissionIntent)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun createMainScaffold(context: Context) {
+fun createMainScaffold() {
     val openDialog = remember { mutableStateOf(false) }
     Scaffold(
         bottomBar = { createNavigationBar() },
@@ -219,7 +194,7 @@ fun createMainScaffold(context: Context) {
         BodyContent(Modifier.padding(innerPadding))
 
         if (openDialog.value) {
-            showConnectDialog(context, openDialog)
+            showConnectDialog(openDialog)
         }
     }
 }
@@ -242,8 +217,10 @@ fun createNavigationBar() {
     }
 }
 
+
 @Composable
-fun showConnectDialog(context: Context, openDialog: MutableState<Boolean>){
+fun showConnectDialog(openDialog: MutableState<Boolean>) {
+
     AlertDialog(
         onDismissRequest = {
             // Dismiss the dialog when the user clicks outside the dialog or on the back
@@ -251,21 +228,21 @@ fun showConnectDialog(context: Context, openDialog: MutableState<Boolean>){
             // onDismissRequest.
             openDialog.value = false
         },
-        icon = { Icon(Icons.Filled.Favorite, contentDescription = null) },
+        icon = { Icon(Icons.Filled.Search, contentDescription = null) },
         title = {
-            Text(text = "Title")
+            Text(text = "Connect Device")
         },
         text = {
-            createSerialConnectContent(context)
+            createSerialConnectContent()
         },
         confirmButton = {
             TextButton(
                 onClick = {
-
+                    viewModel.requestUsbPermission()
                     openDialog.value = false
                 }
             ) {
-                Text("Confirm")
+                Text("Connect")
             }
         },
         dismissButton = {
@@ -274,7 +251,7 @@ fun showConnectDialog(context: Context, openDialog: MutableState<Boolean>){
                     openDialog.value = false
                 }
             ) {
-                Text("Dismiss")
+                Text("Cancel")
             }
         }
     )
@@ -288,5 +265,5 @@ fun BodyContent(modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 fun preview() {
-    //createMainScaffold()
+    createMainScaffold()
 }
